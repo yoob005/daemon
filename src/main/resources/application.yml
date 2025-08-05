@@ -6,7 +6,7 @@ spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/postgres?stringtype=unspecified&currentSchema=auto
     username: postgres
-    password: ENC(PcUyrmdnOt7m1tMqQL0SYXx+e2IXKT20)
+    password: ENC(4XTVXYj/Cche08AKO9JItjIQeeb9HExo)
     driver-class-name: org.postgresql.Driver
     type: com.auto.daemon.MyHikariDataSource
     hikari:
@@ -33,5 +33,5 @@ logging:
 
 daemon:
   api:
-    key: ENC(vabw4Uwr8u3TdEiyCopE/OLLn03XF24CUNjHJcfEA7k+w1rd3avncq6/ejMNmoz+)
-    uri: http://localhost:8083/ISVReceiveOrder
+    key: ENC(K8V7oYCgisjq0yaVM3J5hl+l/THM6tb543qkRTln5eQtsgB2kJ7VtoyK4UQrgebbf1r050pNE2o=)
+    uri: wss://api.upbit.com/websocket/v1

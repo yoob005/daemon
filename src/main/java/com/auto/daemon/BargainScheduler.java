@@ -6,12 +6,12 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 
-import org.jasypt.encryption.pbe.StandardPBEStringEncryptor;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
 import org.slf4j.Logger;
@@ -21,10 +21,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import com.auth0.jwt.JWT;
+import com.auth0.jwt.algorithms.Algorithm;
 import com.auto.daemon.domain.Candle;
 import com.auto.daemon.domain.UserVO;
 import com.auto.daemon.domain.entity.UserInfoEntity;
-import com.auto.daemon.service.BargainService;
 import com.auto.daemon.service.UserInfoService;
 import com.auto.daemon.util.CalcUtil;
 import com.auto.daemon.util.CryptoUtil;
@@ -36,8 +37,8 @@ public class BargainScheduler {
 	
 	private final Logger logger = LoggerFactory.getLogger(this.getClass());
 	
-	@Autowired
-	private BargainService bargainService;
+//	@Autowired
+//	private BargainService bargainService;
 	
 	@Autowired
 	private UserInfoService userInfoService;
@@ -66,26 +67,41 @@ public class BargainScheduler {
 		
 		try {
 			
-			// API ªÁøÎ¿⁄ ¡§∫∏ ¿Œ¿‘
+			// API ÔøΩÔøΩÔøΩÔøΩÔøΩ ÔøΩÔøΩÔøΩÔøΩ ÔøΩÔøΩÔøΩÔøΩ
 			UserInfoEntity userEntity = userInfoService.getUserInfo(apiKey, "Y");
 			user.setAccessKey(userEntity.getAccessKey());
 			user.setSecretKey(CryptoUtil.decrypt(userEntity.getSecretKey(), System.getProperty("crypto.encrypt.key")));
+			// JWT ÌÜ†ÌÅ∞ ÏÉùÏÑ±
+            String nonce = UUID.randomUUID().toString();
+            Algorithm algorithm = Algorithm.HMAC256(user.getSecretKey());
+            
+            String jwtToken = JWT.create()
+            					 .withClaim("access_key", user.getAccessKey())
+            					 .withClaim("nonce", nonce)
+            					 .sign(algorithm);
+
+            // Ïª§Ïä§ÌÖÄ Ìó§Îçî ÏÑ§Ï†ï
+            Map<String, String> headers = new HashMap<>();
+            headers.put("Authorization", "Bearer " + jwtToken);			
 			
-			// Web Socket ø¨∞· ¡ÿ∫Ò
-			URI uri = new URI(apiUri);
-			client = new WebSocketClient(uri) {
-				
+			client = new WebSocketClient(new URI(apiUri), headers) {				
+
 				@Override
 				public void onOpen(ServerHandshake handshakedata) {
 					logger.info("Connect Success"); 
-					String subscriptionMessage = "";
-					send(subscriptionMessage);					
+					
+					//String subscription = "[{\"ticket\":\"" + UUID.randomUUID().toString() + "\"}," + "{\"type\":\"ticker\",\"codes\":[\"KRW-BTC\"]}," + "{\"format\":\"SIMPLE\"}]";
+					//String subscription = "[{"ticket":"UNIQUE_TICKET"},{"type":"ticker","codes":["KRW-BTC","KRW-ETH"]},{"format":"SIMPLE"}]"
+					//send(subscription);
+					sendSubscription();
 				}
 				
 				@Override
 				public void onMessage(String message) {
-					// ºˆΩ≈µ» µ•¿Ã≈Õ∏¶ ≈•ø° ¿˙¿Â
+					// ÔøΩÔøΩÔøΩ≈µÔøΩ ÔøΩÔøΩÔøΩÔøΩÔøΩÕ∏ÔøΩ ≈•ÔøΩÔøΩ ÔøΩÔøΩÔøΩÔøΩ
+					logger.info("ÏöîÍ∏∞Ïöî„Öõ„Öõ„Öõ„Öõ„Öõ„Öõ„Öõ„Öõ„Öõ„Öõ„Öõ„Öõ„Öõ„Öõ„Öõ„Öõ„Öõ„Öõ...");
 					dataQueue.add(message);
+					logger.info("ÏÇ¨Ïù¥Ï¶à : " + dataQueue.size());
 				}
 				
 				@Override
@@ -98,7 +114,7 @@ public class BargainScheduler {
 				public void onClose(int code, String reason, boolean remote) {
 					logger.info("DisConnected: {} (Code: {})", reason, code);
 					
-					//5√  »ƒ ¿Áø¨∞· Ω√µµ
+					//5ÔøΩÔøΩ ÔøΩÔøΩ ÔøΩÁø¨ÔøΩÔøΩ ÔøΩ√µÔøΩ
 					new Thread(() -> {
 						try {
 							Thread.sleep(5000);
@@ -109,9 +125,19 @@ public class BargainScheduler {
 						}
 					}).start();					
 				}
+				
+                private void sendSubscription() {
+                    String subscription = "["
+                            + "{\"ticket\":\"" + UUID.randomUUID().toString() + "\"},"
+                            + "{\"type\":\"ticker\",\"codes\":[\"KRW-BTC\",\"KRW-ETH\"]},"
+                            + "{\"format\":\"SIMPLE\"}"
+                            + "]";
+                    System.out.println("Sending subscription: " + subscription);
+                    send(subscription);
+                }
 			};
 			
-			// Web Socket ø¨∞·
+			// Web Socket ÔøΩÔøΩÔøΩÔøΩ
 			client.connect();
 		} catch (URISyntaxException e) {
 			logger.error("Invalid URI : {}", e.getMessage());
@@ -126,7 +152,7 @@ public class BargainScheduler {
 		
 	}
 	
-	// ¡÷±‚¿˚¿∏∑Œ ø¨∞· ªÛ≈¬ »Æ¿Œ (30√ ∏∂¥Ÿ)
+	// ÔøΩ÷±ÔøΩÔøΩÔøΩÔøΩÔøΩÔøΩÔøΩ ÔøΩÔøΩÔøΩÔøΩ ÔøΩÔøΩÔøΩÔøΩ »ÆÔøΩÔøΩ (30ÔøΩ ∏ÔøΩÔøΩÔøΩ)
     @Scheduled(fixedRate = 30000)
     public void checkConnection() {
         if (client == null || client.isClosed()) {
@@ -137,14 +163,14 @@ public class BargainScheduler {
         }
     }
 	
-    // 0.8√ ∏∂¥Ÿ µ•¿Ã≈Õ √≥∏Æ
+    // 0.8ÔøΩ ∏ÔøΩÔøΩÔøΩ ÔøΩÔøΩÔøΩÔøΩÔøΩÔøΩ √≥ÔøΩÔøΩ
 	@Scheduled(fixedRate = 800)
 	public void processMarketData() {
 		
 		while(!dataQueue.isEmpty()) {
 			String message = dataQueue.poll();
-			try {
-				//JSON ∆ƒΩÃ π◊ µ•¿Ã≈Õ √≥∏Æ
+			try {				
+				//JSON ÔøΩƒΩÔøΩ ÔøΩÔøΩ ÔøΩÔøΩÔøΩÔøΩÔøΩÔøΩ √≥ÔøΩÔøΩ
 				JsonNode node = objectMapper.readTree(message);
 				String type = node.get("type").asText();
 				if(!"trade".equals(type)) {
@@ -159,18 +185,18 @@ public class BargainScheduler {
 				marketCurrentMinute.computeIfAbsent(code, k -> -1L);
 				marketLastPrice.computeIfAbsent(code, k -> 0.0);
 				
-				// 1∫–∫¿ ª˝º∫: ≈∏¿”Ω∫≈∆«¡∏¶ 1∫– ¥‹¿ß∑Œ ¡§±‘»≠
+				// 1ÔøΩ–∫ÔøΩ ÔøΩÔøΩÔøΩÔøΩ: ≈∏ÔøΩ”ΩÔøΩÔøΩÔøΩÔøΩÔøΩÔøΩÔøΩ 1ÔøΩÔøΩ ÔøΩÔøΩÔøΩÔøΩÔøΩÔøΩ ÔøΩÔøΩÔøΩÔøΩ»≠
                 long minuteTimestamp = timestamp / 60000 * 60000;
                 if (marketCurrentMinute.get(code) != minuteTimestamp) {
                     if (marketCurrentMinute.get(code) != -1 && marketLastPrice.get(code) != 0.0) {
-                        // ¿Ã¿¸ 1∫–∫¿ ∏∂∞®
+                        // ÔøΩÔøΩÔøΩÔøΩ 1ÔøΩ–∫ÔøΩ ÔøΩÔøΩÔøΩÔøΩ
                         marketCandles.get(code).add(new Candle(marketCurrentMinute.get(code), marketLastPrice.get(code)));
-                        // RSI ∞ËªÍ (√÷º“ 14∞≥ ƒµµÈ « ø‰)
+                        // RSI ÔøΩÔøΩÔøΩ (ÔøΩ÷ºÔøΩ 14ÔøΩÔøΩ ƒµÔøΩÔøΩ ÔøΩ øÔøΩ)
                         if (marketCandles.get(code).size() >= 14) {
                             double rsi = CalcUtil.calculateRSI(marketCandles.get(code), 14);
                             System.out.printf("1-Minute RSI for %s: %.2f%n", code, rsi);
                         }
-                        // ø¿∑°µ» ƒµµÈ ¡¶∞≈ (∏ﬁ∏∏Æ ∞¸∏Æ)
+                        // ÔøΩÔøΩÔøΩÔøΩÔøΩÔøΩ ƒµÔøΩÔøΩ ÔøΩÔøΩÔøΩÔøΩ (ÔøΩﬁ∏ÔøΩ ÔøΩÔøΩÔøΩÔøΩ)
                         if (marketCandles.get(code).size() > 100) {
                             marketCandles.get(code).subList(0, marketCandles.get(code).size() - 100).clear();
                         }

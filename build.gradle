@@ -26,7 +26,7 @@ dependencies {
 	implementation 'com.github.ulisesbocchio:jasypt-spring-boot-starter:3.0.4'// jasypt
 	implementation 'org.java-websocket:Java-WebSocket:1.5.2' //Web Socket
 	implementation 'com.fasterxml.jackson.core:jackson-databind:2.12.5'
-
+	implementation 'com.squareup.okhttp3:okhttp:4.9.3'	
 
     compile fileTree(dir: 'libs', include: ['*.jar'])
 
@@ -39,7 +39,7 @@ dependencies {
     implementation group: 'ch.qos.logback', name: 'logback-classic', version: '1.2.9'
     implementation group: 'ch.qos.logback', name: 'logback-core', version: '1.2.9'
     implementation group: 'joda-time', name: 'joda-time', version: '2.12.5'
-
+	implementation group: 'com.auth0', name: 'java-jwt', version: '3.10.2'
 
 	implementation group: 'com.zaxxer', name: 'HikariCP', version: '4.0.3'
 

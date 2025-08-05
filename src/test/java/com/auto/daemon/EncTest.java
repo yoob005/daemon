@@ -5,17 +5,14 @@ import java.util.Base64;
 import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
 
-import org.jasypt.encryption.pbe.PooledPBEStringEncryptor;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.jasypt.encryption.pbe.StandardPBEStringEncryptor;
 
 class EncTest {
 	
 	private static final String ALGORITHM = "AES";
 	private static final String TRANSFORMATION = "AES/ECB/PKCS5Padding";
 
-    // ¾ÏÈ£È­
+    // ï¿½ï¿½È£È­
     public static String encrypt(String data, String secretKey) throws Exception {
         SecretKeySpec key = new SecretKeySpec(secretKey.getBytes(), ALGORITHM);
         Cipher cipher = Cipher.getInstance(TRANSFORMATION);
@@ -24,7 +21,7 @@ class EncTest {
         return Base64.getEncoder().encodeToString(encryptedBytes);
     }
 
-    // º¹È£È­
+    // ï¿½ï¿½È£È­
     public static String decrypt(String encryptedData, String secretKey) throws Exception {
         SecretKeySpec key = new SecretKeySpec(secretKey.getBytes(), ALGORITHM);
         Cipher cipher = Cipher.getInstance(TRANSFORMATION);
@@ -32,16 +29,37 @@ class EncTest {
         byte[] decryptedBytes = cipher.doFinal(Base64.getDecoder().decode(encryptedData));
         return new String(decryptedBytes);
     }
-	
-	@Test
-	void test() throws Exception {
+    
+    public static String enc(String encData) {
+    	
+    	String decData = "";
+    	
+        String secretKey = "1qaz@WSX3edc$RFV";
 
-	        String originalData = "010-6740-3034"; // ¾ÏÈ£È­ÇÒ °³ÀÎÁ¤º¸
-	        String encrypted = encrypt(originalData, "1qaz@WSX3edc$RFV");
-	        System.out.println("Encrypted: " + encrypted);
-	        String decrypted = decrypt(encrypted, "1qaz@WSX3edc$RFV");
-	        System.out.println("Decrypted: " + decrypted);
-	}
+        String targetText = "sNit1KIcbOkgARKxsHnWvho2Ow6jF4y3CpAxmuEx";
+
+        // Using Jasypt
+        StandardPBEStringEncryptor encryptor = new StandardPBEStringEncryptor();
+        encryptor.setPassword(secretKey);
+        encryptor.setAlgorithm("PBEWithMD5AndDES"); //Default
+
+        String encryptedText = encryptor.encrypt(targetText);
+        System.out.println("encryptedText = " + encryptedText);
+
+        String decryptedText = encryptor.decrypt(encryptedText);
+        System.out.println("decryptedText = " + decryptedText);
+    	
+    	return decData;
+    }
 	
+    public static void main(String[] args) throws Exception {
+        String originalData = "aPbh0OFqAroydF9qIQvwrSDBc8rizbXCJxfuYZXG"; // ï¿½ï¿½È£È­ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+        String encrypted = encrypt(originalData, "1qaz@WSX3edc$RFV");
+//        System.out.println("Encrypted: " + encrypted);
+        String decrypted = decrypt(encrypted, "1qaz@WSX3edc$RFV");
+//        System.out.println("Decrypted: " + decrypted);
+        enc("aaa");
+	}
+
 	
 }
