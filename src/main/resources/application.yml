@@ -34,3 +34,4 @@ logging:
 daemon:
   api:
     key: ENC(vabw4Uwr8u3TdEiyCopE/OLLn03XF24CUNjHJcfEA7k+w1rd3avncq6/ejMNmoz+)
+    uri: http://localhost:8083/ISVReceiveOrder

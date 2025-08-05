@@ -14,29 +14,11 @@ public class BargainService {
 	private UserVO user;
 		
 	private final Logger logger = LoggerFactory.getLogger(this.getClass());
-	private static Integer cnt = 0;
-	private static long time_stt = 0L;
 	
 	public void proc() {
 		
-		if(cnt == 0) {
-			time_stt = System.currentTimeMillis();
-			logger.info("first access_key : " + user.getAccessKey());
-			logger.info("first secret_key : " + user.getSecretKey());
-		}
+		//HttpRe
 		
-//		logger.info("==================== bargain.proc start ====================");
-		if (cnt > 100) {
-			logger.info("last_cnt : " + cnt);
-			logger.info("dif time : " + this.diffTime(time_stt));
-			logger.info("last access_key : " + user.getAccessKey());
-			logger.info("last secret_key : " + user.getSecretKey());
-			return;
-		}else {
-			logger.info("cnt : " + cnt);
-			cnt ++;
-		}
-//		logger.info("==================== bargain.proc end ====================");
 	}
 	
 	public static int diffTime(long startTimeMsec) {
