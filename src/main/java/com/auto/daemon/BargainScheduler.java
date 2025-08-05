@@ -3,7 +3,9 @@ package com.auto.daemon;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import javax.annotation.PostConstruct;
@@ -52,9 +54,9 @@ public class BargainScheduler {
 	private WebSocketClient client;
 	private final ConcurrentLinkedQueue<String> dataQueue = new ConcurrentLinkedQueue<>();
 	private final ObjectMapper objectMapper = new ObjectMapper();
-	private final List<Candle> candles = new ArrayList<>();
-    private long currentMinute = -1;
-    private double lastPrice = 0.0;
+	private final Map<String, List<Candle>> marketCandles = new HashMap<>();
+    private final Map<String, Long> marketCurrentMinute = new HashMap<>();
+    private final Map<String, Double> marketLastPrice = new HashMap<>();
 	
 	@PostConstruct
 	private void postConstruct() {
@@ -144,26 +146,38 @@ public class BargainScheduler {
 			try {
 				//JSON 파싱 및 데이터 처리
 				JsonNode node = objectMapper.readTree(message);
+				String type = node.get("type").asText();
+				if(!"trade".equals(type)) {
+					continue;
+				}
 				String code = node.get("code").asText();
 				double tradePrice = node.get("trade_price").asDouble();
 				double tradeVolume = node.get("trade_volume").asDouble();
 				long timestamp = node.get("timestamp").asLong();
 				
+				marketCandles.computeIfAbsent(code, k -> new ArrayList<>());
+				marketCurrentMinute.computeIfAbsent(code, k -> -1L);
+				marketLastPrice.computeIfAbsent(code, k -> 0.0);
+				
 				// 1분봉 생성: 타임스탬프를 1분 단위로 정규화
-                long minuteTimestamp = timestamp / 60000 * 60000; // 밀리초를 1분 단위로 변환
-                if (currentMinute != minuteTimestamp) {
-                    if (currentMinute != -1 && lastPrice != 0.0) {
+                long minuteTimestamp = timestamp / 60000 * 60000;
+                if (marketCurrentMinute.get(code) != minuteTimestamp) {
+                    if (marketCurrentMinute.get(code) != -1 && marketLastPrice.get(code) != 0.0) {
                         // 이전 1분봉 마감
-                        candles.add(new Candle(currentMinute, lastPrice));
+                        marketCandles.get(code).add(new Candle(marketCurrentMinute.get(code), marketLastPrice.get(code)));
                         // RSI 계산 (최소 14개 캔들 필요)
-                        if (candles.size() >= 14) {
-                            double rsi = CalcUtil.calculateRSI(candles, 14);
+                        if (marketCandles.get(code).size() >= 14) {
+                            double rsi = CalcUtil.calculateRSI(marketCandles.get(code), 14);
                             System.out.printf("1-Minute RSI for %s: %.2f%n", code, rsi);
                         }
+                        // 오래된 캔들 제거 (메모리 관리)
+                        if (marketCandles.get(code).size() > 100) {
+                            marketCandles.get(code).subList(0, marketCandles.get(code).size() - 100).clear();
+                        }
                     }
-                    currentMinute = minuteTimestamp;
+                    marketCurrentMinute.put(code, minuteTimestamp);
                 }
-                lastPrice = tradePrice;				
+                marketLastPrice.put(code, tradePrice);			
 				
 			} catch (Exception e) {
 				// TODO: handle exception
