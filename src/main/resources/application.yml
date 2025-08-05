@@ -1,0 +1,36 @@
+spring:
+  main:
+    banner-mode: "off"
+  application:
+    name: daemon	  
+  datasource:
+    url: jdbc:postgresql://localhost:5432/postgres?stringtype=unspecified&currentSchema=auto
+    username: postgres
+    password: ENC(PcUyrmdnOt7m1tMqQL0SYXx+e2IXKT20)
+    driver-class-name: org.postgresql.Driver
+    type: com.auto.daemon.MyHikariDataSource
+    hikari:
+      connection-test-query: select 1
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    show-sql: true
+  h2:
+    console:
+      enabled: true		
+#Jasypt
+jasypt:
+  encryptor:
+    bean: jasyptStringEncryptor
+
+logging:
+  level:
+    org:
+      springframework: INFO
+
+daemon:
+  api:
+    key: ENC(vabw4Uwr8u3TdEiyCopE/OLLn03XF24CUNjHJcfEA7k+w1rd3avncq6/ejMNmoz+)
