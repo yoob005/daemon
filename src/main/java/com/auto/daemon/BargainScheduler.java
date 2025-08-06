@@ -67,7 +67,7 @@ public class BargainScheduler {
 		
 		try {
 			
-			// API ����� ���� ����
+			// API 초기 데이터 세팅
 			UserInfoEntity userEntity = userInfoService.getUserInfo(apiKey, "Y");
 			user.setAccessKey(userEntity.getAccessKey());
 			user.setSecretKey(CryptoUtil.decrypt(userEntity.getSecretKey(), System.getProperty("crypto.encrypt.key")));
@@ -98,7 +98,7 @@ public class BargainScheduler {
 				
 				@Override
 				public void onMessage(String message) {
-					// ���ŵ� �����͸� ť�� ����
+					// 요청 메세지 수신
 					logger.info("요기요ㅛㅛㅛㅛㅛㅛㅛㅛㅛㅛㅛㅛㅛㅛㅛㅛㅛㅛ...");
 					dataQueue.add(message);
 					logger.info("사이즈 : " + dataQueue.size());
@@ -114,7 +114,7 @@ public class BargainScheduler {
 				public void onClose(int code, String reason, boolean remote) {
 					logger.info("DisConnected: {} (Code: {})", reason, code);
 					
-					//5�� �� �翬�� �õ�
+					//재연결 시도
 					new Thread(() -> {
 						try {
 							Thread.sleep(5000);
@@ -132,13 +132,13 @@ public class BargainScheduler {
                             + "{\"type\":\"ticker\",\"codes\":[\"KRW-BTC\",\"KRW-ETH\"]},"
                             + "{\"format\":\"SIMPLE\"}"
                             + "]";
-                    System.out.println("Sending subscription: " + subscription);
                     send(subscription);
                 }
 			};
 			
-			// Web Socket ����
+			// Web Socket 연결
 			client.connect();
+			
 		} catch (URISyntaxException e) {
 			logger.error("Invalid URI : {}", e.getMessage());
 			e.printStackTrace();
@@ -152,7 +152,7 @@ public class BargainScheduler {
 		
 	}
 	
-	// �ֱ������� ���� ���� Ȯ�� (30�ʸ���)
+	// 30초마다 연결상태 확인 및 연결되어있지 않으면 재연결
     @Scheduled(fixedRate = 30000)
     public void checkConnection() {
         if (client == null || client.isClosed()) {
