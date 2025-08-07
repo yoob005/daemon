@@ -20,7 +20,9 @@ spring:
     show-sql: true
   h2:
     console:
-      enabled: true		
+      enabled: true
+  security:
+    enable: true		
 #Jasypt
 jasypt:
   encryptor:

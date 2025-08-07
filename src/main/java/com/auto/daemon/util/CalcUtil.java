@@ -6,37 +6,37 @@ import com.auto.daemon.domain.Candle;
 
 public class CalcUtil {
 	
-	// RSI °è»ê ¸Þ¼­µå
-    public static double calculateRSI(List<Candle> candles, int period) {
-        if (candles.size() < period) {
-            return 0.0; // ÃæºÐÇÑ µ¥ÀÌÅÍ°¡ ¾øÀ¸¸é 0 ¹ÝÈ¯
-        }
-
-        double totalGain = 0.0;
-        double totalLoss = 0.0;
-        int count = 0;
-
-        // ÃÖ±Ù period °³ÀÇ Äµµé·Î »ó½Â/ÇÏ¶ôÆø °è»ê
-        for (int i = candles.size() - period; i < candles.size() - 1; i++) {
-            double priceDiff = candles.get(i + 1).closePrice - candles.get(i).closePrice;
-            if (priceDiff > 0) {
-                totalGain += priceDiff;
-            } else if (priceDiff < 0) {
-                totalLoss += Math.abs(priceDiff);
-            }
-            count++;
-        }
-
-        // Æò±Õ »ó½ÂÆø°ú ÇÏ¶ôÆø
-        double avgGain = count > 0 ? totalGain / period : 0.0;
-        double avgLoss = count > 0 ? totalLoss / period : 0.0;
-
-        // RS¿Í RSI °è»ê
-        if (avgLoss == 0.0) {
-            return avgGain == 0.0 ? 50.0 : 100.0; // ÇÏ¶ôÀÌ ¾øÀ¸¸é RSI=100, µÑ ´Ù 0ÀÌ¸é Áß¸³
-        }
-        double rs = avgGain / avgLoss;
-        return 100.0 - (100.0 / (1.0 + rs));
-    }	
+//	// RSI ï¿½ï¿½ï¿½ ï¿½Þ¼ï¿½ï¿½ï¿½
+//    public static double calculateRSI(List<Candle> candles, int period) {
+//        if (candles.size() < period) {
+//            return 0.0; // ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Í°ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ 0 ï¿½ï¿½È¯
+//        }
+//
+//        double totalGain = 0.0;
+//        double totalLoss = 0.0;
+//        int count = 0;
+//
+//        // ï¿½Ö±ï¿½ period ï¿½ï¿½ï¿½ï¿½ Äµï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½/ï¿½Ï¶ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
+//        for (int i = candles.size() - period; i < candles.size() - 1; i++) {
+//            double priceDiff = candles.get(i + 1).closePrice - candles.get(i).closePrice;
+//            if (priceDiff > 0) {
+//                totalGain += priceDiff;
+//            } else if (priceDiff < 0) {
+//                totalLoss += Math.abs(priceDiff);
+//            }
+//            count++;
+//        }
+//
+//        // ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ï¶ï¿½ï¿½ï¿½
+//        double avgGain = count > 0 ? totalGain / period : 0.0;
+//        double avgLoss = count > 0 ? totalLoss / period : 0.0;
+//
+//        // RSï¿½ï¿½ RSI ï¿½ï¿½ï¿½
+//        if (avgLoss == 0.0) {
+//            return avgGain == 0.0 ? 50.0 : 100.0; // ï¿½Ï¶ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ RSI=100, ï¿½ï¿½ ï¿½ï¿½ 0ï¿½Ì¸ï¿½ ï¿½ß¸ï¿½
+//        }
+//        double rs = avgGain / avgLoss;
+//        return 100.0 - (100.0 / (1.0 + rs));
+//    }	
 	
 }

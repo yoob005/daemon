@@ -27,6 +27,7 @@ dependencies {
 	implementation 'org.java-websocket:Java-WebSocket:1.5.2' //Web Socket
 	implementation 'com.fasterxml.jackson.core:jackson-databind:2.12.5'
 	implementation 'com.squareup.okhttp3:okhttp:4.9.3'	
+	implementation 'io.jsonwebtoken:jjwt:0.12.6'
 
     compile fileTree(dir: 'libs', include: ['*.jar'])
 
@@ -45,6 +46,12 @@ dependencies {
 
 	implementation group: 'org.postgresql', name: 'postgresql', version: '42.5.4'
     implementation group: 'org.springframework.security.oauth', name: 'spring-security-oauth2', version: '2.3.5.RELEASE'
+    
+        // https://mvnrepository.com/artifact/org.apache.commons/commons-lang3
+    implementation group: 'org.apache.commons', name: 'commons-lang3', version: '3.12.0'
+
+    // https://mvnrepository.com/artifact/org.apache.commons/commons-math3
+    implementation group: 'org.apache.commons', name: 'commons-math3', version: '3.6.1'
 
     runtimeOnly 'com.h2database:h2'
     compileOnly 'org.projectlombok:lombok'

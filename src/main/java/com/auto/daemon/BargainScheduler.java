@@ -1,19 +1,18 @@
 package com.auto.daemon;
 
-import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.ArrayList;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
 
-import org.java_websocket.client.WebSocketClient;
-import org.java_websocket.handshake.ServerHandshake;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,14 +22,22 @@ import org.springframework.stereotype.Component;
 
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
+import com.auto.daemon.config.enums.SiseType;
 import com.auto.daemon.domain.Candle;
 import com.auto.daemon.domain.UserVO;
 import com.auto.daemon.domain.entity.UserInfoEntity;
 import com.auto.daemon.service.UserInfoService;
-import com.auto.daemon.util.CalcUtil;
 import com.auto.daemon.util.CryptoUtil;
+import com.auto.daemon.util.JsonUtil;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+import okhttp3.WebSocket;
+import okhttp3.WebSocketListener;
+import okio.ByteString;
 
 @Component
 public class BargainScheduler {
@@ -52,12 +59,15 @@ public class BargainScheduler {
 	@Value("${daemon.api.uri}")
 	private String apiUri;
 	
-	private WebSocketClient client;
-	private final ConcurrentLinkedQueue<String> dataQueue = new ConcurrentLinkedQueue<>();
-	private final ObjectMapper objectMapper = new ObjectMapper();
-	private final Map<String, List<Candle>> marketCandles = new HashMap<>();
-    private final Map<String, Long> marketCurrentMinute = new HashMap<>();
-    private final Map<String, Double> marketLastPrice = new HashMap<>();
+    private final OkHttpClient client = new OkHttpClient();
+    private final ObjectMapper mapper = new ObjectMapper();
+    private final Map<String, LinkedList<Candle>> marketCandleBuffer = new ConcurrentHashMap<>();
+    private WebSocket webSocket;
+    private SiseType siseType;
+
+    private static final int RSI_PERIOD = 14;
+    private static final int MAX_BUFFER_SIZE = RSI_PERIOD;
+    private static final List<String> SELECTED_MARKETS = Arrays.asList("KRW-BTC", "KRW-ETH");
 	
 	@PostConstruct
 	private void postConstruct() {
@@ -67,7 +77,7 @@ public class BargainScheduler {
 		
 		try {
 			
-			// API 초기 데이터 세팅
+			// API ����� ���� ����
 			UserInfoEntity userEntity = userInfoService.getUserInfo(apiKey, "Y");
 			user.setAccessKey(userEntity.getAccessKey());
 			user.setSecretKey(CryptoUtil.decrypt(userEntity.getSecretKey(), System.getProperty("crypto.encrypt.key")));
@@ -82,63 +92,24 @@ public class BargainScheduler {
 
             // 커스텀 헤더 설정
             Map<String, String> headers = new HashMap<>();
-            headers.put("Authorization", "Bearer " + jwtToken);			
+            headers.put("Authorization", "Bearer " + jwtToken);		
+            
+            // WebSocket 연결 설정
+            Request request = new Request.Builder().url("wss://api.upbit.com/websocket/v1").build();
+            webSocket = client.newWebSocket(request, new UpbitWebSocketListener());
+            
+            // 1분봉 데이터 요청
+            String codes = SELECTED_MARKETS.stream()
+                    //.map(market -> "\"" + market + ".1\"")
+            		.map(market -> "\"" + market + "\"")
+                    .collect(Collectors.joining(","));
+            String message = String.format("[{\"ticket\":\"test\"},{\"type\":\"candle.1m\",\"codes\":[%s]},{\"format\":\"SIMPLE\"}]", codes);
+            System.out.println(message);
+            webSocket.send(message);
 			
-			client = new WebSocketClient(new URI(apiUri), headers) {				
-
-				@Override
-				public void onOpen(ServerHandshake handshakedata) {
-					logger.info("Connect Success"); 
-					
-					//String subscription = "[{\"ticket\":\"" + UUID.randomUUID().toString() + "\"}," + "{\"type\":\"ticker\",\"codes\":[\"KRW-BTC\"]}," + "{\"format\":\"SIMPLE\"}]";
-					//String subscription = "[{"ticket":"UNIQUE_TICKET"},{"type":"ticker","codes":["KRW-BTC","KRW-ETH"]},{"format":"SIMPLE"}]"
-					//send(subscription);
-					sendSubscription();
-				}
-				
-				@Override
-				public void onMessage(String message) {
-					// 요청 메세지 수신
-					logger.info("요기요ㅛㅛㅛㅛㅛㅛㅛㅛㅛㅛㅛㅛㅛㅛㅛㅛㅛㅛ...");
-					dataQueue.add(message);
-					logger.info("사이즈 : " + dataQueue.size());
-				}
-				
-				@Override
-				public void onError(Exception ex) {
-					logger.error("Connect Fail : {}", ex);
-					
-				}
-				
-				@Override
-				public void onClose(int code, String reason, boolean remote) {
-					logger.info("DisConnected: {} (Code: {})", reason, code);
-					
-					//재연결 시도
-					new Thread(() -> {
-						try {
-							Thread.sleep(5000);
-							logger.info("Reconnecting .......");
-							client.reconnect();
-						} catch (Exception e) {
-							logger.error("Reconnect Fail : {}", e);
-						}
-					}).start();					
-				}
-				
-                private void sendSubscription() {
-                    String subscription = "["
-                            + "{\"ticket\":\"" + UUID.randomUUID().toString() + "\"},"
-                            + "{\"type\":\"ticker\",\"codes\":[\"KRW-BTC\",\"KRW-ETH\"]},"
-                            + "{\"format\":\"SIMPLE\"}"
-                            + "]";
-                    send(subscription);
-                }
-			};
-			
-			// Web Socket 연결
-			client.connect();
-			
+            // 초기 버퍼 설정
+            SELECTED_MARKETS.forEach(market -> marketCandleBuffer.put(market, new LinkedList<>()));
+            
 		} catch (URISyntaxException e) {
 			logger.error("Invalid URI : {}", e.getMessage());
 			e.printStackTrace();
@@ -152,71 +123,163 @@ public class BargainScheduler {
 		
 	}
 	
-	// 30초마다 연결상태 확인 및 연결되어있지 않으면 재연결
-    @Scheduled(fixedRate = 30000)
-    public void checkConnection() {
-        if (client == null || client.isClosed()) {
-            logger.info("WebSocket is disconnected. Reconnecting...");
-            postConstruct();
-        } else if (client.isOpen()) {
-        	logger.info("WebSocket is connected...");
+    private class UpbitWebSocketListener extends WebSocketListener {
+        @Override
+        public void onMessage(WebSocket webSocket, String text) {
+            try {
+            	
+                Map<String, Object> data = mapper.readValue(text, Map.class);
+                String market = (String) data.get("cd");
+                if (!SELECTED_MARKETS.contains(market.replace(".1", ""))) return;
+                Candle candle = mapper.convertValue(data, Candle.class);
+                LinkedList<Candle> buffer = marketCandleBuffer.get(market.replace(".1", ""));
+                synchronized (buffer) {
+                    // 중복 캔들 방지
+                    if (!buffer.isEmpty() && buffer.getLast().getCandleDateTimeUtc().equals(candle.getCandleDateTimeUtc())) {
+                        return;
+                    }
+                    buffer.add(candle);
+                    while (buffer.size() > MAX_BUFFER_SIZE) {
+                        buffer.removeFirst();
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        
+        @Override
+        public void onMessage(WebSocket webSocket, ByteString bytes) {       	
+            
+            try {
+            	
+            	String jsonStr = JsonUtil.fromJson(bytes.string(StandardCharsets.UTF_8), JsonNode.class).toPrettyString();
+                Map<String, Object> data = mapper.readValue(jsonStr, Map.class);
+                String market = (String) data.get("cd");
+                if (!SELECTED_MARKETS.contains(market.replace(".1", ""))) return;
+                Candle candle = mapper.convertValue(data, Candle.class);
+                LinkedList<Candle> buffer = marketCandleBuffer.get(market.replace(".1", ""));
+                synchronized (buffer) {
+                    // 중복 캔들 방지
+                    if (!buffer.isEmpty() && buffer.getLast().getCandleDateTimeUtc().equals(candle.getCandleDateTimeUtc())) {
+                        return;
+                    }
+                    buffer.add(candle);
+                    while (buffer.size() > MAX_BUFFER_SIZE) {
+                        buffer.removeFirst();
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+        }
+
+        @Override
+        public void onOpen(WebSocket webSocket, Response response) {
+        	logger.info("********************* WebSocket 연결 성공 *********************");
+        }
+
+        @Override
+        public void onFailure(WebSocket webSocket, Throwable t, Response response) {
+        	logger.error("############ WebSocket 연결 실패: " + t.getMessage());
         }
     }
-	
-    // 0.8�ʸ��� ������ ó��
-	@Scheduled(fixedRate = 800)
-	public void processMarketData() {
-		
-		while(!dataQueue.isEmpty()) {
-			String message = dataQueue.poll();
-			try {				
-				//JSON �Ľ� �� ������ ó��
-				JsonNode node = objectMapper.readTree(message);
-				String type = node.get("type").asText();
-				if(!"trade".equals(type)) {
-					continue;
-				}
-				String code = node.get("code").asText();
-				double tradePrice = node.get("trade_price").asDouble();
-				double tradeVolume = node.get("trade_volume").asDouble();
-				long timestamp = node.get("timestamp").asLong();
-				
-				marketCandles.computeIfAbsent(code, k -> new ArrayList<>());
-				marketCurrentMinute.computeIfAbsent(code, k -> -1L);
-				marketLastPrice.computeIfAbsent(code, k -> 0.0);
-				
-				// 1�к� ����: Ÿ�ӽ������� 1�� ������ ����ȭ
-                long minuteTimestamp = timestamp / 60000 * 60000;
-                if (marketCurrentMinute.get(code) != minuteTimestamp) {
-                    if (marketCurrentMinute.get(code) != -1 && marketLastPrice.get(code) != 0.0) {
-                        // ���� 1�к� ����
-                        marketCandles.get(code).add(new Candle(marketCurrentMinute.get(code), marketLastPrice.get(code)));
-                        // RSI ��� (�ּ� 14�� ĵ�� �ʿ�)
-                        if (marketCandles.get(code).size() >= 14) {
-                            double rsi = CalcUtil.calculateRSI(marketCandles.get(code), 14);
-                            System.out.printf("1-Minute RSI for %s: %.2f%n", code, rsi);
-                        }
-                        // ������ ĵ�� ���� (�޸� ����)
-                        if (marketCandles.get(code).size() > 100) {
-                            marketCandles.get(code).subList(0, marketCandles.get(code).size() - 100).clear();
-                        }
-                    }
-                    marketCurrentMinute.put(code, minuteTimestamp);
+    
+    private double calculateRSI(LinkedList<Candle> candles) {
+        double sumGain = 0, sumLoss = 0;
+        for (int i = candles.size() - RSI_PERIOD + 1; i < candles.size(); i++) {
+            double change = candles.get(i).getTradePrice() - candles.get(i - 1).getTradePrice();
+            if (change > 0) sumGain += change;
+            else sumLoss -= change;
+        }
+        double avgGain = sumGain / RSI_PERIOD;
+        double avgLoss = sumLoss / RSI_PERIOD;
+        if (avgLoss == 0) return 100;
+        double rs = avgGain / avgLoss;
+        return 100 - (100 / (1 + rs));
+    }
+    
+    @Scheduled(fixedRate = 1000) // 1초마다 RSI 계산
+    public void calculateAndPrintRSI() {
+        for (String market : SELECTED_MARKETS) {
+            LinkedList<Candle> buffer = marketCandleBuffer.get(market);
+            synchronized (buffer) {
+                if (buffer.size() >= RSI_PERIOD) {
+                    double rsi = calculateRSI(buffer);
+                    System.out.println("Market: " + market + " RSI: " + rsi);
+                    System.out.println("------------------------");
                 }
-                marketLastPrice.put(code, tradePrice);			
-				
-			} catch (Exception e) {
-				// TODO: handle exception
-			}
-		}
-		
-	}
-	
-	@PreDestroy
-	public void disconnect() {
-		if(client != null && !client.isClosed()) {
-			client.close();
-			logger.info("WebSocket Client Closed.....");
-		}
-	}
+            }
+        }
+    }
+}
+
+
+
+public Double getRsiByMinutes() {
+    final int minutes = 30;
+    final String market = "KRW-BTC";
+    final int maxCount = 200;
+    // 업비트 캔들 API 호출 (Docs: https://docs.upbit.com/reference/%EB%B6%84minute-%EC%BA%94%EB%93%A4-1)
+    List<MinuteCandleRes> candleResList = marketPriceReaderService.getCandleMinutes(minutes, market, maxCount);
+    if (CollectionUtils.isEmpty(candleResList)) {
+        return null;
+    }
+    
+    // 지수 이동 평균은 과거 데이터부터 구해주어야 합니다.
+    candleResList = candleResList.stream()
+            .sorted(Comparator.comparing(CandleRes::getTimestamp))  // 오름차순 (과거 순)
+            .collect(Collectors.toList());  // Sort
+
+    double zero = 0;
+    List<Double> upList = new ArrayList<>();  // 상승 리스트
+    List<Double> downList = new ArrayList<>();  // 하락 리스트
+    for (int i = 0; i < candleResList.size() - 1; i++) {
+        // 최근 종가 - 전일 종가 = gap 값이 양수일 경우 상승했다는 뜻 / 음수일 경우 하락이라는 뜻
+        double gapByTradePrice = candleResList.get(i + 1).getTradePrice().doubleValue() - candleResList.get(i).getTradePrice().doubleValue();
+        if (gapByTradePrice > 0) {  // 종가가 전일 종가보다 상승일 경우
+            upList.add(gapByTradePrice);
+            downList.add(zero);
+        } else if (gapByTradePrice < 0) {  // 종가가 전일 종가보다 하락일 경우
+            downList.add(gapByTradePrice * -1);  // 음수를 양수로 변환해준다.
+            upList.add(zero);
+        } else {  // 상승, 하락이 없을 경우 종가 - 전일 종가 = gap은 0이므로 0값을 넣어줍니다.
+            upList.add(zero);
+            downList.add(zero);
+        }
+    }
+
+    double day = 14;  // 가중치를 위한 기준 일자 (보통 14일 기준)
+    double a = (double) 1 / (1 + (day - 1));  // 지수 이동 평균의 정식 공식은 a = 2 / 1 + day 이지만 업비트에서 사용하는 수식은 a = 1 / (1 + (day - 1))
+    
+    // AU값 구하기
+    double upEma = 0;  // 상승 값의 지수이동평균
+    if (CollectionUtils.isNotEmpty(upList)) {
+        upEma = upList.get(0).doubleValue();
+        if (upList.size() > 1) {
+            for (int i = 1 ; i < upList.size(); i++) {
+                upEma = (upList.get(i).doubleValue() * a) + (upEma * (1 - a));
+            }
+        }
+    }
+
+    // AD값 구하기
+    double downEma = 0;  // 하락 값의 지수이동평균
+    if (CollectionUtils.isNotEmpty(downList)) {
+        downEma = downList.get(0).doubleValue();
+        if (downList.size() > 1) {
+            for (int i = 1; i < downList.size(); i++) {
+                downEma = (downList.get(i).doubleValue() * a) + (downEma * (1 - a));
+            }
+        }
+    }
+
+    // rsi 계산
+    double au = upEma;
+    double ad = downEma;
+    double rs = au / ad;
+    double rsi = 100 - (100 / (1 + rs));
+
+    return rsi;
 }
