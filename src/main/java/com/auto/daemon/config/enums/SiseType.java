@@ -1,6 +1,5 @@
 package com.auto.daemon.config.enums;
 
-import com.auto.daemon.config.enums.EnumInterface;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import lombok.AllArgsConstructor;
 import lombok.Getter;

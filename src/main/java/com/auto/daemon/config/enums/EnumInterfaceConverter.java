@@ -1,6 +1,5 @@
 package com.auto.daemon.config.enums;
 
-import com.auto.daemon.config.enums.EnumInterface;
 import org.apache.commons.lang3.StringUtils;
 
 import javax.persistence.AttributeConverter;
