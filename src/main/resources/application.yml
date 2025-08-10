@@ -39,3 +39,6 @@ daemon:
   api:
     key: ENC(K8V7oYCgisjq0yaVM3J5hl+l/THM6tb543qkRTln5eQtsgB2kJ7VtoyK4UQrgebbf1r050pNE2o=)
     uri: https://docs.upbit.com
+  market:
+    - KRW-ETH
+    - KRW-BTC

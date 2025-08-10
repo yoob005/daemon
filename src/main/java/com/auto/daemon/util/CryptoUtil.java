@@ -19,7 +19,6 @@ public class CryptoUtil {
 	private static final String ALGORITHM = "AES";
     private static final String TRANSFORMATION = "AES/ECB/PKCS5Padding";
 
-//    // 암호화
 //    public static String encrypt(String data) throws Exception {
 //        SecretKeySpec key = new SecretKeySpec(SECRET_KEY.getBytes(), ALGORITHM);
 //        Cipher cipher = Cipher.getInstance(TRANSFORMATION);
@@ -28,7 +27,6 @@ public class CryptoUtil {
 //        return Base64.getEncoder().encodeToString(encryptedBytes);
 //    }
 
-    // 복호화
     public static String decrypt(String encryptedData, String secretKey) throws Exception {
         SecretKeySpec key = new SecretKeySpec(secretKey.getBytes(), ALGORITHM);
         Cipher cipher = Cipher.getInstance(TRANSFORMATION);

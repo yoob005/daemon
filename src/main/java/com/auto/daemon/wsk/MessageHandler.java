@@ -18,7 +18,7 @@ public class MessageHandler {
 	
     private final ObjectMapper mapper = new ObjectMapper();
     private final Map<String, LinkedList<Candle>> marketCandleBuffer = new ConcurrentHashMap<>();
-    private static final List<String> SELECTED_MARKETS = Arrays.asList("KRW-BTC", "KRW-ETH");
+    private static final List<String> SELECTED_MARKETS = Arrays.asList("KRW-ETH", "KRW-BTC", "KRW-DOGE", "KRW-SOL", "KRW-XRP");
     private static final int RSI_PERIOD = 14;
     private static final int MAX_BUFFER_SIZE = RSI_PERIOD;
     
