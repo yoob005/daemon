@@ -1,11 +1,15 @@
-package com.auto.daemon.wsk;
+package com.auto.daemon.service;
 
-import com.auto.daemon.domain.Candles;
+import com.auto.daemon.domain.Candle;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.net.URLEncoder;
@@ -15,14 +19,16 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 @Component
-public class UpbitCandleFetcher {
-
-    private final OkHttpClient client = new OkHttpClient.Builder()
-            .connectTimeout(10, TimeUnit.SECONDS)
-            .readTimeout(10, TimeUnit.SECONDS)
-            .build();
+public class CandleService {
+	
+	@Value("${daemon.setting.max-candle}")
+	private static Integer MAX_CANDLE_COUNT;
+	
+	@Value("${daemon.api.url}")
+	private static String URL; 
+	
+	private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private final ObjectMapper mapper = new ObjectMapper();
-    private static final int MAX_CANDLE_COUNT = 200; // Upbit 최대 캔들 수
     private static final int MAX_RETRIES = 3;
     private static final long RETRY_DELAY_MS = 2000;
 
@@ -34,9 +40,9 @@ public class UpbitCandleFetcher {
      * @return List<Candle> 최대 200개의 캔들 데이터
      * @throws Exception API 호출 실패 시
      */
-    public List<Candles> fetchOneMinuteCandles(String market, Instant to) throws Exception {
+    public List<Candle> fetchOneMinuteCandles(String market, Instant to, OkHttpClient client) throws Exception {
         int retryCount = 0;
-        String url = "https://api.upbit.com/v1/candles/minutes/1?market=" + market + "&count=" + MAX_CANDLE_COUNT;
+        String url = URL + "/candles/minutes/1?market=" + market + "&count=" + MAX_CANDLE_COUNT;
         if (to != null) {
             url += "&to=" + URLEncoder.encode(to.toString(), "UTF-8");
         }
@@ -46,19 +52,17 @@ public class UpbitCandleFetcher {
                 Request request = new Request.Builder().url(url).build();
                 try (Response response = client.newCall(request).execute()) {
                     if (!response.isSuccessful()) {
-                        System.err.println("REST API failed for " + market + ": " + response.code() + ", " + response.message());
+                    	logger.error("REST API failed for " + market + ": " + response.code() + ", " + response.message());
                         retryCount++;
                         Thread.sleep(RETRY_DELAY_MS);
                         continue;
                     }
                     String json = response.body().string();
-//                    System.out.println("REST API response for " + market + (to != null ? " at " + to : "") + ": " + json.substring(0, Math.min(json.length(), 200)) + "...");
-                    List<Candles> candle = mapper.readValue(json, new TypeReference<List<Candles>>() {});
-//                    System.out.println("Fetched " + candle.size() + " candles for " + market);
+                    List<Candle> candle = mapper.readValue(json, new TypeReference<List<Candle>>() {});
                     return candle;
                 }
             } catch (Exception e) {
-                System.err.println("Failed to fetch candles for " + market + (to != null ? " at " + to : "") + ": " + e.getMessage());
+            	logger.error("Failed to fetch candles for " + market + (to != null ? " at " + to : "") + ": " + e.getMessage());
                 retryCount++;
                 if (retryCount >= MAX_RETRIES) {
                     throw new Exception("Failed to fetch candles after " + MAX_RETRIES + " retries: " + e.getMessage(), e);

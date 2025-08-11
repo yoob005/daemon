@@ -9,7 +9,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import com.auto.daemon.domain.Candle;
-import com.auto.daemon.domain.Candles;
 
 public class CalcUtil {
 	
@@ -44,10 +43,10 @@ public class CalcUtil {
         return result;
     }
 	
-	public static double calcOneMinRSI(List<Candles> candleResList) {
+	public static double calcOneMinRSI(List<Candle> candleResList) {
 		
         candleResList = candleResList.stream()
-                .sorted(Comparator.comparing(Candles::getTimestamp))  // 오름차순 (과거 순)
+                .sorted(Comparator.comparing(Candle::getTimestamp))  // 오름차순 (과거 순)
                 .collect(Collectors.toList());  // Sort
         
         double zero = 0;

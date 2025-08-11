@@ -1,5 +1,62 @@
-//package com.auto.daemon;
-//
+package com.auto.daemon;
+
+import java.util.List;
+
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.stereotype.Component;
+
+import lombok.Data;
+
+@Data
+@Component
+@ConfigurationProperties(prefix = "daemon")
+public class DaemonProperty {
+	
+	private List<String> market;  // daemon.market 리스트 매핑
+
+    private Socket socket;  // daemon.socket 중첩 객체 매핑
+
+    private Api api;  // daemon.api 중첩 객체 매핑
+
+    private Setting setting;  // daemon.setting 중첩 객체 매핑
+
+    // 중첩 클래스: Socket
+    @Data
+    public static class Socket {
+        private String url;  // daemon.socket.url 매핑
+    }
+
+    // 중첩 클래스: Api
+    @Data
+    public static class Api {
+        private String key;  // daemon.api.key 매핑 (Jasypt로 암호화된 값 자동 해독)
+        private String uri;  // daemon.api.uri 매핑
+    }
+
+    // 중첩 클래스: Setting
+    @Data
+    public static class Setting {
+        private int maxCandle;  // daemon.setting.max-candle 매핑 (YAML의 하이픈은 카멜케이스로 변환)
+    }
+	
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 //import java.net.URISyntaxException;
 //import java.nio.charset.StandardCharsets;
 //import java.util.Arrays;

@@ -21,8 +21,6 @@ spring:
   h2:
     console:
       enabled: true
-  security:
-    enable: true		
 #Jasypt
 jasypt:
   encryptor:
@@ -34,11 +32,14 @@ logging:
       springframework: INFO
 
 daemon:
+  market:
+    - KRW-ETH
+    - KRW-BTC
+    - KRW-XRP
   socket:
     url: wss://api.upbit.com/websocket/v1
   api:
     key: ENC(K8V7oYCgisjq0yaVM3J5hl+l/THM6tb543qkRTln5eQtsgB2kJ7VtoyK4UQrgebbf1r050pNE2o=)
-    uri: https://docs.upbit.com
-  market:
-    - KRW-ETH
-    - KRW-BTC
+    uri: https://api.upbit.com/v1
+  setting:
+    max-candle: 200        

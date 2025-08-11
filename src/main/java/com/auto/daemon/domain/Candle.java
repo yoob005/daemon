@@ -1,7 +1,5 @@
 package com.auto.daemon.domain;
 
-import java.sql.Timestamp;
-
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import lombok.Data;
@@ -9,17 +7,26 @@ import lombok.Data;
 @Data
 public class Candle {
 
-	@JsonProperty("ty") private String type;
-	@JsonProperty("cd") private String code;
-    @JsonProperty("cdttmu") private String candleDateTimeUtc;
-    @JsonProperty("cdttmk") private String candleDateTimeKr;
-    @JsonProperty("op") private double openingPrice;
-    @JsonProperty("hp") private double highPrice;
-    @JsonProperty("lp") private double lowPrice;
-    @JsonProperty("tp") private double tradePrice;
-    @JsonProperty("catv") private double catv;
-    @JsonProperty("catp") private double catp;
-    @JsonProperty("tms") private Timestamp timestamp;
-    @JsonProperty("st") private String realtime;
-	
+	@JsonProperty("market")
+	private String market;
+    @JsonProperty("candle_date_time_utc")
+    private String candleDateTimeUtc;
+    @JsonProperty("candle_date_time_kst")
+    private String candleDateTimeKst;
+    @JsonProperty("opening_price")
+    private double openingPrice;
+    @JsonProperty("high_price")
+    private double highPrice;
+    @JsonProperty("low_price")
+    private double lowPrice;
+    @JsonProperty("trade_price")
+    private double tradePrice;
+    @JsonProperty("timestamp")
+    private long timestamp;
+    @JsonProperty("candle_acc_trade_price")
+    private double candleAccTradePrice;
+    @JsonProperty("candle_acc_trade_volume")
+    private double candleAccTradeVolume;
+    @JsonProperty("unit")
+    private Integer unit;
 }
