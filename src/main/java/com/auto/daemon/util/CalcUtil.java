@@ -26,16 +26,26 @@ public class CalcUtil {
         return 100 - (100 / (1 + rs));
     }
 
-	public static Map<String, Double> calculateBollingerBands(LinkedList<Candle> candles) {
+	public static Map<String, Double> calculateBollingerBands(List<Candle> candles) {
+        // 입력 데이터 검증: 최소 20개 필요
+        if (candles.size() < 20) {
+            throw new IllegalArgumentException("At least 20 candles are required to calculate Bollinger Bands. Provided: " + candles.size());
+        }
+
+        // 최근 20개 종가 추출 (200개 중 마지막 20개)
         List<Double> closes = candles.subList(candles.size() - 20, candles.size()).stream()
                 .map(Candle::getTradePrice)
                 .collect(Collectors.toList());
+
+        // SMA 계산
         double sum = closes.stream().mapToDouble(Double::doubleValue).sum();
         double sma = sum / 20;
+
+        // 표준편차 계산
         double sumSq = closes.stream().mapToDouble(p -> Math.pow(p - sma, 2)).sum();
         double std = Math.sqrt(sumSq / 20);
-        
-        // Java 8 호환: Map.of 대신 HashMap 사용
+
+        // 결과 맵 생성
         Map<String, Double> result = new HashMap<>();
         result.put("sma", sma);
         result.put("upperBand", sma + 2 * std);
