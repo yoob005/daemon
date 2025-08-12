@@ -1,59 +1,123 @@
 package com.auto.daemon;
 
-import java.time.LocalDateTime;
+import java.io.IOException;
+import java.math.BigInteger;
+import java.security.MessageDigest;
 import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.IntStream;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 
-import org.springframework.beans.factory.annotation.Value;
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.util.EntityUtils;
 
-import com.auto.daemon.domain.entity.PriceData;
+import com.auth0.jwt.JWT;
+import com.auth0.jwt.algorithms.Algorithm;
+import com.google.gson.Gson;
 
 public class configTest {
 	
-	@Value("${daemon.api.marketList}")
-	private List<String> marketArr;
+	private static String accessKey = "sNit1KIcbOkgARKxsHnWvho2Ow6jF4y3CpAxmuEx";
+	private static String secretKey = "aPbh0OFqAroydF9qIQvwrSDBc8rizbXCJxfuYZXG";
 	
-	@Value("${daemon.api.key}")
-	private String apikey;
+	public static void main(String[] args) {
+		
+//		System.out.println(getAccount());
+		System.out.println(postOrders());
 	
-	public void main(String[] args) {
+	}
+	
+	public static String getAccount() {
 		
-		List<PriceData> priceDataList = new ArrayList<PriceData>();
-		PriceData pr = new PriceData();
-		pr.setId(0L);
+		String result = "";
 		
-		// 종가 배열 생성 (오름차순으로 정렬)
-        double[] closes = priceDataList.stream()
-                .sorted((a, b) -> a.getTimestamp().compareTo(b.getTimestamp())) // 타임스탬프 오름차순
-                .mapToDouble(PriceData::getClosePrice)
-                .toArray();
+        String serverUrl = "https://api.upbit.com";        
+        
+        Algorithm algorithm = Algorithm.HMAC256(secretKey);
+        String jwtToken = JWT.create()
+                .withClaim("access_key", accessKey)
+                .withClaim("nonce", UUID.randomUUID().toString())
+                .sign(algorithm);
 
-        // 상승폭과 하락폭 계산
-        double[] gains = new double[14];
-        double[] losses = new double[14];
+        String authenticationToken = "Bearer " + jwtToken;
 
-        for (int i = 1; i < 14; i++) {
-            double change = closes[i] - closes[i - 1];
-            gains[i] = change > 0 ? change : 0;
-            losses[i] = change < 0 ? Math.abs(change) : 0;
+        try {
+            HttpClient client = HttpClientBuilder.create().build();
+            HttpGet request = new HttpGet(serverUrl + "/v1/accounts");
+            request.setHeader("Content-Type", "application/json");
+            request.addHeader("Authorization", authenticationToken);
+
+            HttpResponse response = client.execute(request);
+            HttpEntity entity = response.getEntity();
+
+            result = EntityUtils.toString(entity, "UTF-8");
+            
+        } catch (IOException e) {
+            e.printStackTrace();
         }
-
-        // 평균 상승폭과 하락폭 계산 (단순이동평균)
-        double avgGain = IntStream.range(1, 14)
-                .mapToDouble(i -> gains[i])
-                .average()
-                .orElse(0.0);
-        double avgLoss = IntStream.range(1, 14)
-                .mapToDouble(i -> losses[i])
-                .average()
-                .orElse(0.0);
-
-        // RS 계산
-        double rs = avgLoss == 0 ? Double.POSITIVE_INFINITY : avgGain / avgLoss;
-
-        // RSI 계산
-        System.out.println(100 - (100 / (1 + rs)));
+		
+		return result;
+	}
+	
+	public static String postOrders() {
+		
+		String result = "";
+		try {
+		
+	        String serverUrl = "https://api.upbit.com";
+	
+	        HashMap<String, String> params = new HashMap<>();
+	        params.put("market", "KRW-XRP");
+	        params.put("side", "ask");
+	        params.put("volume", "13.78993334");
+	        params.put("ord_type", "market");
+	
+	        ArrayList<String> queryElements = new ArrayList<>();
+	        for(Map.Entry<String, String> entity : params.entrySet()) {
+	            queryElements.add(entity.getKey() + "=" + entity.getValue());
+	        }
+	
+	        String queryString = String.join("&", queryElements.toArray(new String[0]));
+	
+	        MessageDigest md = MessageDigest.getInstance("SHA-512");
+	        md.update(queryString.getBytes("UTF-8"));
+	
+	        String queryHash = String.format("%0128x", new BigInteger(1, md.digest()));
+	
+	        Algorithm algorithm = Algorithm.HMAC256(secretKey);
+	        String jwtToken = JWT.create()
+	                .withClaim("access_key", accessKey)
+	                .withClaim("nonce", UUID.randomUUID().toString())
+	                .withClaim("query_hash", queryHash)
+	                .withClaim("query_hash_alg", "SHA512")
+	                .sign(algorithm);
+	
+	        String authenticationToken = "Bearer " + jwtToken;
+	
+	            HttpClient client = HttpClientBuilder.create().build();
+	            HttpPost request = new HttpPost(serverUrl + "/v1/orders");
+	            request.setHeader("Content-Type", "application/json");
+	            request.addHeader("Authorization", authenticationToken);
+	            request.setEntity(new StringEntity(new Gson().toJson(params)));
+	
+	            HttpResponse response = client.execute(request);
+	            HttpEntity entity = response.getEntity();
+	
+	           result = EntityUtils.toString(entity, "UTF-8");
+	            
+        } catch (Exception e) {
+        	
+            e.printStackTrace();
+            
+        }
+		
+		return result;
 	}
 	
 }
