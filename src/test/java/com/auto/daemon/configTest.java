@@ -23,8 +23,8 @@ import com.google.gson.Gson;
 
 public class configTest {
 	
-	private static String accessKey = "sNit1KIcbOkgARKxsHnWvho2Ow6jF4y3CpAxmuEx";
-	private static String secretKey = "aPbh0OFqAroydF9qIQvwrSDBc8rizbXCJxfuYZXG";
+	private static String accessKey = "";
+	private static String secretKey = "";
 	
 	public static void main(String[] args) {
 		
