@@ -1,6 +1,5 @@
 package com.auto.daemon.service;
 
-import java.io.IOException;
 import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.util.HashMap;
@@ -12,7 +11,6 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.auth0.jwt.JWT;
@@ -21,21 +19,11 @@ import com.auto.daemon.DaemonProperty;
 import com.auto.daemon.domain.UserVO;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.gson.Gson;
 
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
-
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpResponse;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.util.EntityUtils;
 
 @Service
 public class MarketService {
@@ -101,9 +89,8 @@ public class MarketService {
         return placeOrder(params, client);
     }
 	
-    private String placeOrder(Map<String, Object> params, OkHttpClient clients) throws Exception {
+    private String placeOrder(Map<String, Object> params, OkHttpClient client) throws Exception {
     	
-    	String result = "";
     	String queryString = params.entrySet().stream()
                 .map(e -> e.getKey() + "=" + e.getValue())
                 .collect(Collectors.joining("&"));
@@ -118,25 +105,24 @@ public class MarketService {
     			.withClaim("query_hash", queryHash)
     			.withClaim("query_hash_alg", "SHA-512")
     			.sign(algorithm);    	
-    	String authenticationToken = "Bearer " + jwt;
     	
-        try {
-            HttpClient client = HttpClientBuilder.create().build();
-            HttpPost request = new HttpPost(daemonProp.getApi().getUri() + "/orders");
-            request.setHeader("Content-Type", "application/json");
-            request.addHeader("Authorization", authenticationToken);
-            request.setEntity(new StringEntity(new Gson().toJson(params)));
+        RequestBody body = RequestBody.create(
+                mapper.writeValueAsString(params),
+                okhttp3.MediaType.parse("application/json")
+        );
+        Request request = new Request.Builder()
+                .url(daemonProp.getApi().getUri() + "/orders")
+                .addHeader("Authorization", "Bearer " + jwt)
+                .post(body)
+                .build();
 
-            HttpResponse response = client.execute(request);
-            HttpEntity entity = response.getEntity();
-           
-            result = EntityUtils.toString(entity, "UTF-8");
-            
-        } catch (IOException e) {
-            e.printStackTrace();
+        try (Response response = client.newCall(request).execute()) {
+            String json = response.body().string();
+            if (!response.isSuccessful()) {
+                throw new Exception("Failed to place order: " + json);
+            }
+            return json;
         }
-        
-        return result;
     }
     
     private double getKrwBalance(OkHttpClient client) throws Exception {
@@ -180,7 +166,6 @@ public class MarketService {
                 .build();
         try (Response response = client.newCall(request).execute()) {
             String json = response.body().string();
-            logger.info("지갑정보 : {}", json);
             if (!response.isSuccessful()) {
                 throw new Exception("Failed to get accounts: " + json);
             }
