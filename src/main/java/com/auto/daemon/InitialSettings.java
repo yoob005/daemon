@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 
 import javax.annotation.PostConstruct;
 
@@ -48,10 +50,8 @@ public class InitialSettings {
 	
 	private final Logger logger = LoggerFactory.getLogger(this.getClass());
 	private final ObjectMapper mapper = new ObjectMapper();
-	private boolean addFlag = false;
-	private String nowAddMarket = "";
-	private Algorithm algorithm;
-	private String jwt = "";
+	private boolean addFlag = true;
+	private String nowAddMarket = "KRW-SOL";
 	private List<String> marketList;
 	
     private final OkHttpClient client = new OkHttpClient.Builder()
@@ -74,14 +74,7 @@ public class InitialSettings {
 			UserInfoEntity userEntity = userInfoService.getUserInfo(daemonProp.getApi().getKey(), "Y");
 			user.setAccessKey(userEntity.getAccessKey());
 			user.setSecretKey(CryptoUtil.decrypt(userEntity.getSecretKey(), System.getProperty("crypto.encrypt.key")));
-			
-			//Jwt Token Setting
-	    	algorithm = Algorithm.HMAC256(user.getSecretKey());
-	        jwt = JWT.create()
-	                .withClaim("access_key", user.getAccessKey())
-	                .withClaim("nonce", UUID.randomUUID().toString())
-	                .sign(algorithm);
-	        
+			    
 	        marketList = daemonProp.getMarket();
 	        
 		} catch (Exception e) {
@@ -94,7 +87,7 @@ public class InitialSettings {
 	}
 	
 	
-	@Scheduled(fixedRate = 1000) // 1초 주기로 1분봉 RSI 계산
+	@Scheduled(fixedRate = 6000) // 1초 주기로 1분봉 RSI 계산
 	public void calcOneMinRSI() {
 		
         try {       	
@@ -114,7 +107,8 @@ public class InitialSettings {
         			
         			if(!addFlag && (rsi > 0 && rsi < 30)) {
         				// 전량매수
-        				result = mapper.readValue(marketService.marketBuyAll(market, jwt, client), new TypeReference<Map<String,Object>>(){}) ;
+        				result = mapper.readValue(marketService.marketBuyAll(market, client), new TypeReference<Map<String,Object>>(){}) ;
+        				logger.info("주문결과 : {}", result.toString());
         				if("".equals(result.get(""))) {
         					addFlag = true;
         					nowAddMarket = market;
@@ -126,11 +120,13 @@ public class InitialSettings {
         		
         		candleResList = candleService.fetchOneMinuteCandles(nowAddMarket, null, client);
     			rsi = CalcUtil.calcOneMinRSI(candleResList);
-    			logger.info("############ {} RSI : {}", nowAddMarket, rsi);
-        		if(rsi > 70 ) {    			
+    			logger.info("############ {} RSI : {} ", nowAddMarket, rsi);
+        		if(rsi > 45.0 ) {
+        	        
     				// 전량매도
-        			result = mapper.readValue(marketService.marketSellAll(nowAddMarket, jwt, client), new TypeReference<Map<String,Object>>(){}) ;
-    				if("".equals(result.get(""))) {
+        			result = mapper.readValue(marketService.marketSellAll(nowAddMarket, client), new TypeReference<Map<String,Object>>(){}) ;
+        			logger.info("주문결과 : {}", result.toString());
+        			if("".equals(result.get(""))) {
     					addFlag = false;
     					nowAddMarket = "";
     				}

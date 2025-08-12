@@ -1,5 +1,6 @@
 package com.auto.daemon.service;
 
+import com.auto.daemon.DaemonProperty;
 import com.auto.daemon.domain.Candle;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -9,6 +10,7 @@ import okhttp3.Response;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -21,11 +23,8 @@ import java.util.concurrent.TimeUnit;
 @Component
 public class CandleService {
 	
-	@Value("${daemon.setting.max-candle}")
-	private static Integer MAX_CANDLE_COUNT;
-	
-	@Value("${daemon.api.url}")
-	private static String URL; 
+	@Autowired
+	private DaemonProperty daemonProp;
 	
 	private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private final ObjectMapper mapper = new ObjectMapper();
@@ -42,11 +41,10 @@ public class CandleService {
      */
     public List<Candle> fetchOneMinuteCandles(String market, Instant to, OkHttpClient client) throws Exception {
         int retryCount = 0;
-        String url = URL + "/candles/minutes/1?market=" + market + "&count=" + MAX_CANDLE_COUNT;
+        String url = daemonProp.getApi().getUri() + "/candles/minutes/1?market=" + market + "&count=" + daemonProp.getSetting().getMaxCandle();
         if (to != null) {
             url += "&to=" + URLEncoder.encode(to.toString(), "UTF-8");
         }
-
         while (retryCount < MAX_RETRIES) {
             try {
                 Request request = new Request.Builder().url(url).build();
