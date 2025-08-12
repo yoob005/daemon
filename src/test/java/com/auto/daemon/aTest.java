@@ -21,7 +21,7 @@ import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.google.gson.Gson;
 
-public class configTest {
+public class aTest {
 	
 	private static String accessKey = "";
 	private static String secretKey = "";
