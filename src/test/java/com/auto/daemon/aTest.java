@@ -3,6 +3,8 @@ package com.auto.daemon;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.security.MessageDigest;
+import java.sql.Date;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -29,8 +31,16 @@ public class aTest {
 	public static void main(String[] args) {
 		
 //		System.out.println(getAccount());
-		System.out.println(postOrders());
-	
+//		System.out.println(postOrders());
+		
+    	Date date_now = new Date(System.currentTimeMillis());
+    	SimpleDateFormat fourteen_format = new SimpleDateFormat("yyyyMMddHHmm");
+    	
+    	long yetstt = 202508141523L;
+    	long timestt = Long.parseLong(fourteen_format.format(date_now));
+		
+		System.out.println(timestt - yetstt);
+		System.out.println("KRW-BTC".split("-")[1]);
 	}
 	
 	public static String getAccount() {

@@ -53,19 +53,24 @@ public class MarketService {
      * @return 주문 결과 JSON 문자열
      * @throws Exception API 호출 실패 시
      */
-    public String marketBuyAll(String market, OkHttpClient client) throws Exception {
+    public String marketBuyAll(String market, OkHttpClient client, boolean halfFlag) throws Exception {
         // KRW 잔고 조회
         double krwBalance = getKrwBalance(client);
         if (krwBalance <= 0) {
         	logger.error("보유 중인 원화가 0원입니다.");
             throw new Exception("No KRW balance available for buy");
+        }else {
+        	// 첫 매수시 보유금액의 절반만 매수
+        	if(halfFlag){
+        		krwBalance = Math.floor(krwBalance / 2);
+        	}
         }
 
         // 시장가 매수 주문
         Map<String, Object> params = new HashMap<>();
         params.put("market", market);
         params.put("side", "bid");
-        params.put("price", String.valueOf(krwBalance)); // 전액 매수
+        params.put("price", String.valueOf(krwBalance));
         params.put("ord_type", "price");
         logger.info("주문정보: {}", params.toString());
         
@@ -161,7 +166,7 @@ public class MarketService {
      * @return 주문 결과 JSON 문자열
      * @throws Exception API 호출 실패 시
      */
-    private List<Map<String, Object>> getAccounts(OkHttpClient client) throws Exception {
+    public List<Map<String, Object>> getAccounts(OkHttpClient client) throws Exception {
 
     	Algorithm algorithm = Algorithm.HMAC256(user.getSecretKey());
     	String jwt = JWT.create()
