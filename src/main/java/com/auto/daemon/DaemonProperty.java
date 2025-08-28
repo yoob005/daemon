@@ -34,9 +34,13 @@ public class DaemonProperty {
     }
 
     // 중첩 클래스: Setting
+    // daemon.setting 매핑 (YAML의 하이픈은 카멜케이스로 변환)
     @Data
     public static class Setting {
-        private int maxCandle;  // daemon.setting.max-candle 매핑 (YAML의 하이픈은 카멜케이스로 변환)
+    	private int maxCandle;  
+        private String candleMinute;
+        private double rsiUpLimit;
+        private double rsiDownLimit;
     }
 	
 }

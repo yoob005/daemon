@@ -37,9 +37,9 @@ public class CandleService {
      * @return List<Candle> 최대 200개의 캔들 데이터
      * @throws Exception API 호출 실패 시
      */
-    public List<Candle> fetchOneMinuteCandles(String market, Instant to, OkHttpClient client) throws Exception {
+    public List<Candle> fetchMinuteCandles(String market, Instant to, OkHttpClient client, String minute) throws Exception {
         int retryCount = 0;
-        String url = daemonProp.getApi().getUri() + "/candles/minutes/1?market=" + market + "&count=" + daemonProp.getSetting().getMaxCandle();
+        String url = daemonProp.getApi().getUri() + "/candles/minutes/" + minute + "?market=" + market + "&count=" + daemonProp.getSetting().getMaxCandle();
         if (to != null) {
             url += "&to=" + URLEncoder.encode(to.toString(), "UTF-8");
         }

@@ -36,11 +36,14 @@ daemon:
     - KRW-ETH
     - KRW-SOL
     - KRW-XRP
-    - KRW-USDT
+   #- KRW-USDT
   socket:
     url: wss://api.upbit.com/websocket/v1
   api:
     key: ENC(K8V7oYCgisjq0yaVM3J5hl+l/THM6tb543qkRTln5eQtsgB2kJ7VtoyK4UQrgebbf1r050pNE2o=)
     uri: https://api.upbit.com/v1
   setting:
-    max-candle: 200        
+    max-candle: 200
+    candle-minute: 3
+    rsi-up-limit: 68.5
+    rsi-down-limit: 31.5   

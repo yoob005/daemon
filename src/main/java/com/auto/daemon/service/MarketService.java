@@ -70,7 +70,7 @@ public class MarketService {
         Map<String, Object> params = new HashMap<>();
         params.put("market", market);
         params.put("side", "bid");
-        params.put("price", String.valueOf(krwBalance));
+        params.put("price", String.valueOf(krwBalance - 5000));
         params.put("ord_type", "price");
         logger.info("주문정보: {}", params.toString());
         

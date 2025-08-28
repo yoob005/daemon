@@ -48,11 +48,15 @@ public class InitialSettings {
 	private final Logger logger = LoggerFactory.getLogger(this.getClass());
 	private final ObjectMapper mapper = new ObjectMapper();
 	
-	private final double downLimit = 31.5;
-	private final double upLimit = 66.5;
+	private double downLimit;
+	private double upLimit;
+	private String candleMinute;
+	
 	private boolean addFlag;
 	private String nowAddMarket = "";
+	
 	private List<String> marketList;
+	
 	private long lastDownTime = 0L;
 	private int touchDownCnt = 0;
 	
@@ -76,8 +80,13 @@ public class InitialSettings {
 			UserInfoEntity userEntity = userInfoService.getUserInfo(daemonProp.getApi().getKey(), "Y");
 			user.setAccessKey(userEntity.getAccessKey());
 			user.setSecretKey(CryptoUtil.decrypt(userEntity.getSecretKey(), System.getProperty("crypto.encrypt.key")));
-			    
+			
+			// Trade Info Setting
 	        marketList = daemonProp.getMarket();
+	        
+	        upLimit = daemonProp.getSetting().getRsiUpLimit();
+	        downLimit = daemonProp.getSetting().getRsiDownLimit();
+	        candleMinute = daemonProp.getSetting().getCandleMinute();
 	        
 		} catch (Exception e) {
 			logger.error("************** API INFO SETTING ERROR **************");
@@ -89,7 +98,7 @@ public class InitialSettings {
 	}
 	
 	
-	@Scheduled(fixedRate = 2500) // 2.5초 주기로 1분봉 RSI 계산
+	@Scheduled(fixedRate = 2500) // 2.5초 주기로 분봉 RSI 계산
 	public void calcOneMinRSI() {
 		
         try {       	
@@ -102,16 +111,16 @@ public class InitialSettings {
         	if(!addFlag) {
         		
         		for(String market : marketList) {
-        			candleResList = candleService.fetchOneMinuteCandles(market, null, client);
+        			candleResList = candleService.fetchMinuteCandles(market, null, client, candleMinute);
         			
         			rsi = CalcUtil.calcOneMinRSI(candleResList);
         			logger.info("############ {} RSI : {}", market, rsi);
         			
         			if((rsi > 0 && rsi < downLimit) && touchDownCnt == 0) {
         				 
-    					// 시드 50% 매수
+    					// 시드 65% 매수
     					result = mapper.readValue(marketService.marketBuyAll(market, client, true), new TypeReference<Map<String,Object>>(){}) ;
-    					logger.info("잘반 주문결과 : {}", result.toString());
+    					logger.info("1st 주문결과 : {}", result.toString());
     					if(!"".equals(StringUtil.getObjToString(result.get("uuid")))) {
     						addFlag = true;
     						nowAddMarket = market;
@@ -127,7 +136,7 @@ public class InitialSettings {
         	// 매도해야할때
         	}else {
         		
-        		candleResList = candleService.fetchOneMinuteCandles(nowAddMarket, null, client);
+        		candleResList = candleService.fetchMinuteCandles(nowAddMarket, null, client, candleMinute);
     			rsi = CalcUtil.calcOneMinRSI(candleResList);
     			logger.info("############ {} RSI : {} ", nowAddMarket, rsi);
     			
@@ -135,7 +144,8 @@ public class InitialSettings {
 		    	SimpleDateFormat fourteen_format = new SimpleDateFormat("yyyyMMddHHmm");
 		    	Long now = Long.parseLong(fourteen_format.format(date_now));
 		    	
-		    	if(rsi < (downLimit - 3) && 30 > (now - lastDownTime) && touchDownCnt < 2) {
+		    	//RSI 기준 매매
+		    	if(rsi < (downLimit - 3) && 60 > (now - lastDownTime) && touchDownCnt < 2) {
     				
 					// 남은 절반 매수
 					result = mapper.readValue(marketService.marketBuyAll(nowAddMarket, client, false), new TypeReference<Map<String,Object>>(){}) ;
@@ -160,6 +170,9 @@ public class InitialSettings {
     					lastDownTime = 0L;
     				}
     			}
+		    	
+		    	// 수익률 기준 매도 로직
+		    	
         	}
         	
 			logger.info("=============================================================");
@@ -180,16 +193,21 @@ public class InitialSettings {
 				String chkMarket = nowAddMarket.split("-")[1];
 				
 				List<Map<String, Object>> accounts = marketService.getAccounts(client);
-				
+				boolean chkSell = false;
 		        for (Map<String, Object> account : accounts) {
+		        	logger.info(account.toString());
 		            if (chkMarket.equals(account.get("currency"))) {
-		            	if(0.0 == Double.parseDouble((String) account.get("balance"))) {
-		            		addFlag = false;
-		            		nowAddMarket = "";
-		            		logger.info("########### 수동 매도로 인한 마켓 초기화 작업 실행 ###########");
-		            	}
+		            	chkSell = true;
 		            }
-		        }				
+		        }		
+		        
+		        if(!chkSell) {
+		        	addFlag = false;	        	
+		        	nowAddMarket = "";
+		        	touchDownCnt = 0;
+		        	lastDownTime = 0L;
+		        	logger.info("########### 수동 매도로 인한 마켓 초기화 작업 실행 ###########");
+		        }
 			}
 			
 		} catch (Exception e) {
